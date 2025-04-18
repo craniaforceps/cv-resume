@@ -1,16 +1,36 @@
-import { createContext, useState } from 'react'
+import { createContext, useState, useEffect, useContext } from 'react'
 
+// Criando o AppContext
 export const AppContext = createContext()
 
+// Função para verificar o tema preferido pelo usuário
+const getInitialDarkMode = () => {
+  const prefersDarkMode = window.matchMedia(
+    '(prefers-color-scheme:dark)'
+  ).matches
+  const storedDarkMode = localStorage.getItem('darkTheme') === 'true'
+  return storedDarkMode || prefersDarkMode
+}
+
+// O AppProvider vai envolver o restante do app e prover o contexto
 export const AppProvider = ({ children }) => {
-  // Estado para a secção Education
+  // Dark mode state
+  const [isDarkTheme, setIsDarkTheme] = useState(getInitialDarkMode())
+
+  // Função para alternar entre dark mode e light mode
+  const toggleDarkTheme = () => {
+    const newDarkTheme = !isDarkTheme
+    setIsDarkTheme(newDarkTheme)
+    localStorage.setItem('darkTheme', newDarkTheme)
+  }
+
+  // Estados para as seções de educação, experiência e informações gerais
   const [education, setEducation] = useState({
     data: { school: '', field: '', degree: '', startDate: '', endDate: '' },
-    submitted: null, // Dados submetidos (modo visualização)
-    isEditing: true, // true = modo edição, false = modo visualização
+    submitted: null,
+    isEditing: true,
   })
 
-  // Estado para a secção Experience
   const [experience, setExperience] = useState({
     data: {
       company: '',
@@ -23,64 +43,45 @@ export const AppProvider = ({ children }) => {
     isEditing: true,
   })
 
-  // Estado para a secção General Info
   const [generalInfo, setGeneralInfo] = useState({
     data: { name: '', email: '', phone: '' },
     submitted: null,
     isEditing: true,
   })
 
-  /**
-   * Manipulador genérico de alterações em inputs
-   * @param {string} section - Nome da seção ('education', 'experience', 'generalInfo')
-   * @returns {function} Função handler para o evento onChange
-   */
+  // Funções para manipular dados das seções
   const handleChange = (section) => (e) => {
     const { name, value } = e.target
-
-    // Mapeia cada seção para sua função de atualização correspondente
     const updater = {
       education: setEducation,
       experience: setExperience,
       generalInfo: setGeneralInfo,
     }
 
-    // Atualiza o estado usando a função correspondente à seção
     updater[section]((prev) => ({
-      ...prev, // Mantém o resto do estado
+      ...prev,
       data: {
-        ...prev.data, // Mantém os outros campos
-        [name]: value, // Atualiza apenas o campo que mudou
+        ...prev.data,
+        [name]: value,
       },
     }))
   }
 
-  /**
-   * Manipulador genérico de submit de formulários
-   * @param {string} section - Nome da seção
-   * @param {Event} e - Evento do formulário
-   */
   const handleSubmit = (section) => (e) => {
     e.preventDefault()
-
     const updater = {
       education: setEducation,
       experience: setExperience,
       generalInfo: setGeneralInfo,
     }
 
-    // Ao submeter:
     updater[section]((prev) => ({
-      data: prev.data, // Mantém os dados atuais (pode limpar se quiser)
-      submitted: prev.data, // Salva cópia dos dados submetidos
-      isEditing: false, // Sai do modo edição
+      data: prev.data,
+      submitted: prev.data,
+      isEditing: false,
     }))
   }
 
-  /**
-   * Ativa o modo edição para uma seção
-   * @param {string} section - Nome da seção a editar
-   */
   const handleEdit = (section) => () => {
     const updater = {
       education: setEducation,
@@ -88,12 +89,16 @@ export const AppProvider = ({ children }) => {
       generalInfo: setGeneralInfo,
     }
 
-    // Entra no modo edição
     updater[section]((prev) => ({
       ...prev,
       isEditing: true,
     }))
   }
+
+  // Efeito para aplicar o tema escuro ao corpo da página
+  useEffect(() => {
+    document.body.classList.toggle('dark-theme', isDarkTheme)
+  }, [isDarkTheme])
 
   return (
     <AppContext.Provider
@@ -104,9 +109,14 @@ export const AppProvider = ({ children }) => {
         handleChange,
         handleSubmit,
         handleEdit,
+        isDarkTheme,
+        toggleDarkTheme,
       }}
     >
       {children}
     </AppContext.Provider>
   )
 }
+
+// Hook customizado para acessar o contexto global
+export const useGlobalContext = () => useContext(AppContext)
